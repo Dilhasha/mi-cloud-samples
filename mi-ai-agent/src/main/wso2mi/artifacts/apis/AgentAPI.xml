@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/agent" name="AgentAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="POST" uri-template="/">
+        <inSequence>
+            <ai.agent>
+                <connections>
+                    <llmConfigKey>OPENAI_CONN</llmConfigKey>
+                    <memoryConfigKey>FILE_MEMORY_CONN</memoryConfigKey>
+                </connections>
+                <sessionId>{${payload.userID}}</sessionId>
+                <role>Friendly Assistant</role>
+                <instructions>You are a concise, friendly assistant. Answer the user's question in one or two sentences.</instructions>
+                <prompt>${payload.query}</prompt>
+                <outputType>string</outputType>
+                <responseVariable>ai_agent_1</responseVariable>
+                <overwriteBody>true</overwriteBody>
+                <modelName>gpt-4o-mini</modelName>
+                <temperature>0.7</temperature>
+                <maxTokens>1024</maxTokens>
+                <topP>1</topP>
+                <frequencyPenalty>0</frequencyPenalty>
+                <maxHistory>10</maxHistory>
+                <overflowHandlingMethod>Trim</overflowHandlingMethod>
+            </ai.agent>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+            <variable name="errorCode" type="STRING" expression="${props.synapse.ERROR_CODE}"/>
+            <variable name="errorMessage" type="STRING" expression="${props.synapse.ERROR_MESSAGE}"/>
+            <payloadFactory media-type="json" template-type="freemarker">
+                <format><![CDATA[{
+    "error": "${vars.errorMessage}",
+    "code": "${vars.errorCode}"
+}]]></format>
+            </payloadFactory>
+            <property name="HTTP_SC" scope="axis2" type="STRING" value="500"/>
+            <respond/>
+        </faultSequence>
+    </resource>
+    <resource methods="GET" uri-template="/health">
+        <inSequence>
+            <payloadFactory media-type="json" template-type="freemarker">
+                <format><![CDATA[{"status":"ok"}]]></format>
+            </payloadFactory>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+        </faultSequence>
+    </resource>
+</api>

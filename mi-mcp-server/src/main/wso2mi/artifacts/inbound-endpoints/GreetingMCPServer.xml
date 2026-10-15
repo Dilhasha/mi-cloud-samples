@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inboundEndpoint name="GreetingMCPServer" sequence="" onError="" class="org.wso2.carbon.inbound.sse.McpInboundListener" xmlns="http://ws.apache.org/ns/synapse">
+    <parameters>
+        <parameter name="inbound.mcp.port">8300</parameter>
+        <parameter name="inbound.http.port">8300</parameter>
+        <parameter name="inbound.http.context">/mcp</parameter>
+        <parameter name="mcp.tools.localentry">GreetingMCPServer-mcp-config</parameter>
+        <parameter name="inbound.behavior">listening</parameter>
+        <parameter name="inbound.cors.allow.origin">*</parameter>
+        <parameter name="inbound.cors.allow.methods">GET, POST, OPTIONS</parameter>
+        <parameter name="inbound.cors.allow.headers">Content-Type, Mcp-Session-Id</parameter>
+        <parameter name="inbound.cors.expose.headers">Mcp-Session-Id</parameter>
+        <parameter name="inbound.sse.keepalive.interval">30000</parameter>
+    </parameters>
+</inboundEndpoint>

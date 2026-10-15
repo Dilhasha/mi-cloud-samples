@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<localEntry key="GreetingMCPServer-mcp-config" xmlns="http://ws.apache.org/ns/synapse">
+    <mcptools>
+        <tool name="greet">
+            <api>GreetingAPI</api>
+            <resource>/hello/{name}</resource>
+            <method>GET</method>
+            <description>Return a greeting message for the given name</description>
+            <inputSchema><![CDATA[{"type":"object","properties":{"name":{"type":"string","description":"Name of the person to greet"}},"additionalProperties":false,"required":["name"]}]]></inputSchema>
+        </tool>
+    </mcptools>
+</localEntry>

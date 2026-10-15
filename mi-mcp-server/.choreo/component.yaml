@@ -1,0 +1,13 @@
+# Choreo / WSO2 Cloud component descriptor.
+schemaVersion: 1.2
+
+endpoints:
+  # The MCP server (inbound endpoint GreetingMCPServer) listens on 8300 at /mcp.
+  - name: mcp
+    displayName: Greeting MCP Server
+    service:
+      basePath: /mcp
+      port: 8300
+    type: REST
+    networkVisibilities:
+      - Public

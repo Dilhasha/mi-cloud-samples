@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/greeting" name="GreetingAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="GET" uri-template="/hello/{name}">
+        <inSequence>
+            <variable name="name" type="STRING" expression="${params.pathParams.name}"/>
+            <payloadFactory media-type="json" template-type="freemarker">
+                <format><![CDATA[{
+    "message": "Hello, ${vars.name}!",
+    "source": "mi-mcp-server"
+}]]></format>
+            </payloadFactory>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+        </faultSequence>
+    </resource>
+    <resource methods="GET" uri-template="/time">
+        <inSequence>
+            <variable name="now" type="STRING" expression="${formatDateTime(now(), &quot;yyyy-MM-dd HH:mm:ss&quot;)}"/>
+            <payloadFactory media-type="json" template-type="freemarker">
+                <format><![CDATA[{
+    "time": "${vars.now}"
+}]]></format>
+            </payloadFactory>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+        </faultSequence>
+    </resource>
+</api>
