@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inboundEndpoint name="OrderEventListener" onError="OrderEventError" protocol="rabbitmq" sequence="ProcessOrderEvent" suspend="false" xmlns="http://ws.apache.org/ns/synapse">
+    <parameters>
+        <parameter name="sequential">true</parameter>
+        <parameter name="coordination">true</parameter>
+        <parameter name="rabbitmq.connection.factory">OrderEventConnectionFactory</parameter>
+        <parameter name="rabbitmq.server.host.name">$SYSTEM:RABBITMQ_HOST</parameter>
+        <parameter name="rabbitmq.server.port">$SYSTEM:RABBITMQ_PORT</parameter>
+        <parameter name="rabbitmq.server.user.name">$SYSTEM:RABBITMQ_USERNAME</parameter>
+        <parameter name="rabbitmq.server.password">$SYSTEM:RABBITMQ_PASSWORD</parameter>
+        <parameter name="rabbitmq.queue.name">orders</parameter>
+        <parameter name="rabbitmq.queue.autodeclare">true</parameter>
+        <parameter name="rabbitmq.queue.durable">true</parameter>
+        <parameter name="rabbitmq.message.content.type">application/json</parameter>
+    </parameters>
+</inboundEndpoint>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="OrderEventError" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <log category="ERROR">
+        <message>Failed to process order event: ${props.synapse.ERROR_MESSAGE}</message>
+    </log>
+    <drop/>
+</sequence>

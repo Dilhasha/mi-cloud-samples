@@ -8,6 +8,7 @@ Minimal WSO2 Integrator: MI 4.6.0 projects for end-to-end platform testing.
 | `mi-ai-agent/` | `AgentAPI` REST API that runs an `ai.agent` (OpenAI, `gpt-4o-mini`, file chat memory). | 8290 |
 | `mi-automation/` | Automation: `HeartbeatAutomation` sequence set as the automation (main) sequence. MI runs it once and shuts down. | none |
 | `mi-file-integration/` | File integration: `OrderFileListener` file inbound endpoint polls `/tmp/mi-files/inbox`, summarizes each order JSON into `outbox/` (File connector 5.0.5). `FileAPI` drops and reads files over HTTP. | 8290 |
+| `mi-event-integration/` | Event integration: `OrderEventListener` RabbitMQ inbound endpoint consumes the `orders` queue and logs each event. | none |
 
 ## Build
 
@@ -129,3 +130,47 @@ curl http://localhost:8290/files/outbox/order-1001.json
 
 An order without `items` (for example `{"orderId":"x"}`) is moved to `processed/`, and
 `failed/<name>` gets `{"sourceFile":"<name>","error":"Error parsing FreeMarker template, ..."}`.
+
+## mi-event-integration
+
+The inbound endpoint reads the broker connection from environment variables through `$SYSTEM:`
+(inbound endpoint parameters do not resolve `${configs.X}` or `$config:X`; both fail with
+`Number format error in port number`):
+
+| Variable | Example |
+|---|---|
+| `RABBITMQ_HOST` | `rabbitmq` |
+| `RABBITMQ_PORT` | `5672` |
+| `RABBITMQ_USERNAME` | `guest` |
+| `RABBITMQ_PASSWORD` | `guest` |
+
+The `orders` queue is declared (durable) if it does not exist. If the broker is unreachable, MI keeps
+retrying every 30 s.
+
+```sh
+docker network create mi-events
+docker run -d --name rabbitmq --network mi-events -p 15672:15672 rabbitmq:4.1-management
+docker run --rm --network mi-events \
+  -e RABBITMQ_HOST=rabbitmq -e RABBITMQ_PORT=5672 -e RABBITMQ_USERNAME=guest -e RABBITMQ_PASSWORD=guest \
+  -v "$PWD/mi-event-integration/target/MIEventIntegration_1.0.0.car":/home/wso2carbon/wso2mi-4.6.0/repository/deployment/server/carbonapps/MIEventIntegration_1.0.0.car \
+  wso2/wso2mi:4.6.0
+
+# Publish through the RabbitMQ management API
+curl -u guest:guest -H 'content-type: application/json' \
+  -X POST http://localhost:15672/api/exchanges/%2F/amq.default/publish \
+  -d '{"properties":{"content_type":"application/json"},"routing_key":"orders","payload":"{\"orderId\":\"2002\",\"amount\":4999.99}","payload_encoding":"string"}'
+# {"routed":true}
+```
+
+MI logs:
+
+```
+INFO {LogMediator} - {inboundendpoint:OrderEventListener} Order event received: orderId=2002, amount=4999.99
+INFO {LogMediator} - {inboundendpoint:OrderEventListener} High-value order 2002 flagged for review
+```
+
+Orders with `amount` > 1000 get the extra "flagged for review" line.
+
+Known MI 4.6.0 behavior: a message that is not valid JSON (with `content_type: application/json`)
+fails in `JsonStreamBuilder` before mediation, and the RabbitMQ consumer stops. The queue then shows
+0 consumers, and MI must be restarted to consume again. Publish only valid JSON when testing.
