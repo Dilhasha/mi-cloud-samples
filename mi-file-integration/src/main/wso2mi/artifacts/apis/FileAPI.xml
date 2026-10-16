@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/files" name="FileAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="POST" uri-template="/inbox/{name}">
+        <inSequence>
+            <variable name="name" type="STRING" expression="${params.pathParams.name}"/>
+            <file.write configKey="FILE_CONN">
+                <filePath>{${"/inbox/" + vars.name}}</filePath>
+                <mimeType>application/json</mimeType>
+                <writeMode>Overwrite</writeMode>
+                <responseVariable>file_write_inbox</responseVariable>
+                <overwriteBody>false</overwriteBody>
+            </file.write>
+            <payloadFactory media-type="json" template-type="freemarker">
+                <format><![CDATA[{
+    "accepted": "inbox/${vars.name}"
+}]]></format>
+            </payloadFactory>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+        </faultSequence>
+    </resource>
+    <resource methods="GET" uri-template="/outbox">
+        <inSequence>
+            <file.listFiles configKey="FILE_CONN">
+                <directoryPath>/outbox</directoryPath>
+                <matchingPattern>.*\.json</matchingPattern>
+                <recursive>false</recursive>
+                <responseFormat>Flat</responseFormat>
+                <sortingAttribute>Name</sortingAttribute>
+                <sortingOrder>Ascending</sortingOrder>
+                <responseVariable>file_listFiles_outbox</responseVariable>
+                <overwriteBody>true</overwriteBody>
+            </file.listFiles>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+        </faultSequence>
+    </resource>
+    <resource methods="GET" uri-template="/outbox/{name}">
+        <inSequence>
+            <variable name="name" type="STRING" expression="${params.pathParams.name}"/>
+            <file.read configKey="FILE_CONN">
+                <path>{${"/outbox/" + vars.name}}</path>
+                <readMode>Complete File</readMode>
+                <contentType>application/json</contentType>
+                <responseVariable>file_read_outbox</responseVariable>
+                <overwriteBody>true</overwriteBody>
+            </file.read>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+        </faultSequence>
+    </resource>
+</api>

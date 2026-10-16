@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inboundEndpoint name="OrderFileListener" onError="OrderFileError" protocol="file" sequence="ProcessOrderFile" suspend="false" xmlns="http://ws.apache.org/ns/synapse">
+    <parameters>
+        <parameter name="interval">2000</parameter>
+        <parameter name="sequential">true</parameter>
+        <parameter name="coordination">true</parameter>
+        <parameter name="transport.vfs.FileURI">file:///tmp/mi-files/inbox</parameter>
+        <parameter name="transport.vfs.FileNamePattern">.*\.json</parameter>
+        <parameter name="transport.vfs.ContentType">application/json</parameter>
+        <parameter name="transport.vfs.ActionAfterProcess">MOVE</parameter>
+        <parameter name="transport.vfs.MoveAfterProcess">file:///tmp/mi-files/processed</parameter>
+        <parameter name="transport.vfs.Locking">disable</parameter>
+    </parameters>
+</inboundEndpoint>

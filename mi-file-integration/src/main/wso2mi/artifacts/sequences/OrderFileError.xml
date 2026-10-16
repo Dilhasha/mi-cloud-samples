@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="OrderFileError" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <variable name="fileName" type="STRING" expression="${headers[&quot;FILE_NAME&quot;]}"/>
+    <variable name="errorMessage" type="STRING" expression="${props.synapse.ERROR_MESSAGE}"/>
+    <log category="ERROR">
+        <message>Failed to process order file ${vars.fileName}: ${vars.errorMessage}</message>
+    </log>
+    <payloadFactory media-type="json" template-type="freemarker">
+        <format><![CDATA[{
+    "sourceFile": "${vars.fileName}",
+    "error": "${vars.errorMessage?json_string}"
+}]]></format>
+    </payloadFactory>
+    <file.write configKey="FILE_CONN">
+        <filePath>{${"/failed/" + vars.fileName}}</filePath>
+        <mimeType>application/json</mimeType>
+        <writeMode>Overwrite</writeMode>
+        <responseVariable>file_write_error</responseVariable>
+        <overwriteBody>false</overwriteBody>
+    </file.write>
+    <drop/>
+</sequence>

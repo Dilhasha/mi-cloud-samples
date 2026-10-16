@@ -7,6 +7,7 @@ Minimal WSO2 Integrator: MI 4.6.0 projects for end-to-end platform testing.
 | `mi-mcp-server/` | `GreetingAPI` REST API plus an MCP server (`GreetingMCPServer` inbound endpoint) that exposes `GET /greeting/hello/{name}` as the MCP tool `greet`. | 8290 (REST), 8300 (MCP, `/mcp`) |
 | `mi-ai-agent/` | `AgentAPI` REST API that runs an `ai.agent` (OpenAI, `gpt-4o-mini`, file chat memory). | 8290 |
 | `mi-automation/` | Automation: `HeartbeatAutomation` sequence set as the automation (main) sequence. MI runs it once and shuts down. | none |
+| `mi-file-integration/` | File integration: `OrderFileListener` file inbound endpoint polls `/tmp/mi-files/inbox`, summarizes each order JSON into `outbox/` (File connector 5.0.5). `FileAPI` drops and reads files over HTTP. | 8290 |
 
 ## Build
 
@@ -92,3 +93,39 @@ INFO {CoreServerInitializer} - Gracefully shutting down WSO2 Micro Integrator...
 ```
 
 Without `--car`, MI starts in normal server mode and the sequence does not run.
+
+## mi-file-integration
+
+All paths are under `/tmp/mi-files` (writable even with a read-only root filesystem):
+
+| Directory | Contents |
+|---|---|
+| `inbox/` | Polled every 2 s for `*.json`. |
+| `outbox/` | One summary per processed order, same file name. |
+| `processed/` | Every picked-up input file is moved here (success or failure). |
+| `failed/` | An error record for each input that could not be processed. |
+
+The `InitFileDirsTask` task runs once at startup and creates the four directories with the File
+connector. The listener can poll before the task finishes, so one
+`WARN {FilePollingConsumer} - Unable to access or read file or directory : file:///tmp/mi-files/inbox`
+at startup is expected.
+
+```sh
+docker run --rm -p 8290:8290 \
+  -v "$PWD/mi-file-integration/target/MIFileIntegration_1.0.0.car":/home/wso2carbon/wso2mi-4.6.0/repository/deployment/server/carbonapps/MIFileIntegration_1.0.0.car \
+  wso2/wso2mi:4.6.0
+
+# Drop an order into inbox/ (or copy a file there directly)
+curl -X POST http://localhost:8290/files/inbox/order-1001.json -H 'Content-Type: application/json' \
+  -d '{"orderId":"1001","items":[{"sku":"A","qty":2,"price":10.5},{"sku":"B","qty":1,"price":1000}]}'
+# {"accepted":"inbox/order-1001.json"}
+
+# A couple of seconds later:
+curl http://localhost:8290/files/outbox
+# {"success":true,"files":{"files":[{"name":"order-1001.json","path":"/tmp/mi-files/outbox/order-1001.json"}]}}
+curl http://localhost:8290/files/outbox/order-1001.json
+# {"orderId":"1001","itemCount":2,"total":1021,"sourceFile":"order-1001.json"}
+```
+
+An order without `items` (for example `{"orderId":"x"}`) is moved to `processed/`, and
+`failed/<name>` gets `{"sourceFile":"<name>","error":"Error parsing FreeMarker template, ..."}`.

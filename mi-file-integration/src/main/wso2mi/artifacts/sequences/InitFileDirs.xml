@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="InitFileDirs" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <!-- Messages injected by a task carry no transport headers, which connector operations expect. -->
+    <header name="X-Init-Source" scope="transport" action="set" value="InitFileDirsTask"/>
+    <file.createDirectory configKey="FILE_CONN">
+        <directoryPath>/inbox</directoryPath>
+        <responseVariable>file_createDirectory_inbox</responseVariable>
+        <overwriteBody>false</overwriteBody>
+    </file.createDirectory>
+    <file.createDirectory configKey="FILE_CONN">
+        <directoryPath>/outbox</directoryPath>
+        <responseVariable>file_createDirectory_outbox</responseVariable>
+        <overwriteBody>false</overwriteBody>
+    </file.createDirectory>
+    <file.createDirectory configKey="FILE_CONN">
+        <directoryPath>/processed</directoryPath>
+        <responseVariable>file_createDirectory_processed</responseVariable>
+        <overwriteBody>false</overwriteBody>
+    </file.createDirectory>
+    <file.createDirectory configKey="FILE_CONN">
+        <directoryPath>/failed</directoryPath>
+        <responseVariable>file_createDirectory_failed</responseVariable>
+        <overwriteBody>false</overwriteBody>
+    </file.createDirectory>
+    <log category="INFO">
+        <message>File directories ready under /tmp/mi-files (inbox, outbox, processed, failed)</message>
+    </log>
+    <drop/>
+</sequence>
