@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>org.wso2.integration.inbound</groupId>
+  <artifactId>mi-inbound-mcp</artifactId>
+  <versioning>
+    <release>1.0.1-devtest</release>
+    <versions>
+      <version>1.0.1-devtest</version>
+    </versions>
+    <lastUpdated>20261016093624</lastUpdated>
+  </versioning>
+</metadata>

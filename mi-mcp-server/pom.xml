@@ -8,6 +8,17 @@
     <name>MIMcpServer</name>
     <description>MIMcpServer</description>
     <repositories>
+        <!-- TEST ONLY: serves an unreleased mi-inbound-mcp build committed under local-repo/
+             (wso2-extensions/mi-inbound-mcp#12). Do not merge. -->
+        <repository>
+            <id>local-test</id>
+            <name>Bundled test artifacts</name>
+            <url>file://${project.basedir}/local-repo</url>
+            <releases>
+                <enabled>true</enabled>
+                <checksumPolicy>ignore</checksumPolicy>
+            </releases>
+        </repository>
         <repository>
             <id>wso2-nexus</id>
             <name>WSO2 internal Repository</name>
@@ -410,7 +421,7 @@
         <dependency>
             <groupId>org.wso2.integration.inbound</groupId>
             <artifactId>mi-inbound-mcp</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1-devtest</version>
             <type>zip</type>
             <exclusions>
                 <exclusion>
