@@ -1,18 +1,20 @@
 # MI cloud samples
 
-Two minimal WSO2 Integrator: MI 4.6.0 projects for end-to-end platform testing.
+Minimal WSO2 Integrator: MI 4.6.0 projects for end-to-end platform testing.
 
 | Project | What it is | Ports |
 |---|---|---|
 | `mi-mcp-server/` | `GreetingAPI` REST API plus an MCP server (`GreetingMCPServer` inbound endpoint) that exposes `GET /greeting/hello/{name}` as the MCP tool `greet`. | 8290 (REST), 8300 (MCP, `/mcp`) |
 | `mi-ai-agent/` | `AgentAPI` REST API that runs an `ai.agent` (OpenAI, `gpt-4o-mini`, file chat memory). | 8290 |
+| `mi-automation/` | Automation: `HeartbeatAutomation` sequence set as the automation (main) sequence. MI runs it once and shuts down. | none |
 
 ## Build
 
 ```sh
 docker run --rm -v "$PWD/mi-mcp-server":/src -w /src maven:3.9.9-eclipse-temurin-21 \
   mvn --batch-mode --no-transfer-progress clean install -Dmaven.test.skip=true
-# -> mi-mcp-server/target/MIMcpServer_1.0.0.car   (same for mi-ai-agent -> MIAiAgent_1.0.0.car)
+# -> mi-mcp-server/target/MIMcpServer_1.0.0.car
+# Same for the others: MIAiAgent, MIAutomation, MIFileIntegration, MIEventIntegration (<artifactId>_1.0.0.car)
 ```
 
 ## Run locally
@@ -67,3 +69,26 @@ MI logs `ERROR {ConfigDeployer} - The value of the key:[OPENAI_API_KEY] is not f
 
 Chat memory (`FILE_MEMORY_CONN`) is written to
 `<MI_HOME>/registry/governance/ai/chat-memory/FILE_MEMORY_CONN.json`, so the MI home must be writable.
+
+## mi-automation
+
+`pom.xml` sets `<mainSequence>HeartbeatAutomation</mainSequence>` (what "Set as automation sequence" in
+MI for VS Code writes), so the CApp's `artifacts.xml` carries `mainSequence="HeartbeatAutomation"`.
+Start MI with `--car <CApp name>` to run in automation mode:
+
+```sh
+docker run --rm \
+  -v "$PWD/mi-automation/target/MIAutomation_1.0.0.car":/home/wso2carbon/wso2mi-4.6.0/repository/deployment/server/carbonapps/MIAutomation_1.0.0.car \
+  wso2/wso2mi:4.6.0 --car MIAutomation
+```
+
+Expected log lines, then a graceful shutdown and exit code 0:
+
+```
+INFO {LogMediator} - HeartbeatAutomation started
+INFO {LogMediator} - HeartbeatAutomation result: {"job":"HeartbeatAutomation","source":"mi-automation","startedAt":"2026-10-16T07:19:55","status":"ok"}
+INFO {LogMediator} - HeartbeatAutomation completed
+INFO {CoreServerInitializer} - Gracefully shutting down WSO2 Micro Integrator...
+```
+
+Without `--car`, MI starts in normal server mode and the sequence does not run.

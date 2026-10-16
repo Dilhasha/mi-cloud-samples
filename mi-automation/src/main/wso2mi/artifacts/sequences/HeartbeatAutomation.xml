@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="HeartbeatAutomation" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <log category="INFO">
+        <message>HeartbeatAutomation started</message>
+    </log>
+    <variable name="startedAt" type="STRING" expression="${formatDateTime(now(), &quot;yyyy-MM-dd'T'HH:mm:ss&quot;)}"/>
+    <payloadFactory media-type="json" template-type="freemarker">
+        <format><![CDATA[{
+    "job": "HeartbeatAutomation",
+    "source": "mi-automation",
+    "startedAt": "${vars.startedAt}",
+    "status": "ok"
+}]]></format>
+    </payloadFactory>
+    <log category="INFO">
+        <message>HeartbeatAutomation result: ${payload}</message>
+    </log>
+    <log category="INFO">
+        <message>HeartbeatAutomation completed</message>
+    </log>
+</sequence>
