@@ -3,6 +3,9 @@
     <log category="INFO">
         <message>HeartbeatAutomation started</message>
     </log>
+    <log category="INFO">
+        <message>Configured count: ${configs.count}</message>
+    </log>
     <variable name="startedAt" type="STRING" expression="${formatDateTime(now(), &quot;yyyy-MM-dd'T'HH:mm:ss&quot;)}"/>
     <payloadFactory media-type="json" template-type="freemarker">
         <format><![CDATA[{
