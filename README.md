@@ -174,3 +174,19 @@ Orders with `amount` > 1000 get the extra "flagged for review" line.
 Known MI 4.6.0 behavior: a message that is not valid JSON (with `content_type: application/json`)
 fails in `JsonStreamBuilder` before mediation, and the RabbitMQ consumer stops. The queue then shows
 0 consumers, and MI must be restarted to consume again. Publish only valid JSON when testing.
+
+## product-samples
+
+Unmodified copies of samples from
+[`wso2/product-integrator-mi/samples`](https://github.com/wso2/product-integrator-mi/tree/master/samples)
+(commit `6d20322`), one per MI integration type, for testing project import in the console.
+
+| Project | Integration type | What it is |
+|---|---|---|
+| `product-samples/HelloWorldService/` | Integration as API | `HelloWorld` API: `GET /HelloWorld` returns `{"Hello":"World"}`. |
+| `product-samples/PeriodicalScheduledTasks/` | Automation | `PersonRecordRetrieveTask` runs 5 times, 30 s apart, and calls an external SOAP `FindPerson` service. |
+| `product-samples/FileTransfer/` | File integration | `StudentDataFileProcessInboundEP` polls `file:///home/user/in` for `*.csv` and moves files to `out/` or `error/`. |
+| `product-samples/RabbitMQIntegration/` | Event integration | `SalesOrderQueueInboundEP` consumes `SalesOrderQueue` (port 5672); `SalesOrderAddService` proxy publishes to it. |
+
+These are not adapted for the cloud: the file paths, broker host and SOAP backend are the upstream
+defaults, so the integrations may fail at runtime even when import and build succeed.
