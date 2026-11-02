@@ -7,7 +7,7 @@ Minimal WSO2 Integrator: MI 4.6.0 projects for end-to-end platform testing.
 | `mi-mcp-server/` | `GreetingAPI` REST API plus an MCP server (`GreetingMCPServer` inbound endpoint) that exposes `GET /greeting/hello/{name}` as the MCP tool `greet`. | 8290 (REST), 8300 (MCP, `/mcp`) |
 | `mi-ai-agent/` | `AgentAPI` REST API that runs an `ai.agent` (OpenAI, `gpt-4o-mini`, file chat memory). | 8290 |
 | `mi-automation/` | Automation: `HeartbeatAutomation` sequence set as the automation (main) sequence. MI runs it once and shuts down. | none |
-| `mi-file-integration/` | File integration: `OrderFileListener` file inbound endpoint polls `/tmp/mi-files/inbox`, summarizes each order JSON into `outbox/` (File connector 5.0.5). `FileAPI` drops and reads files over HTTP. | 8290 |
+| `mi-file-integration/` | Self-contained file integration: `GenerateOrderTask` writes an order JSON to `/tmp/mi-files/inbox` every 30 s, and the `OrderFileListener` file inbound endpoint summarizes each one into `outbox/` (File connector 5.0.5). No endpoints, no network. | none |
 | `mi-event-integration/` | Event integration: `OrderEventListener` RabbitMQ inbound endpoint consumes the `orders` queue and logs each event. | none |
 | `mi-weather-data-listener/` | File integration: MI port of the Ballerina [`weather-data-listener`](https://github.com/wso2/integration-samples/tree/main/integrator-default-profile/samples/weather-data-listener) sample. `WeatherDataListener` (File Event Listener `mi-inbound-file` 0.9.3) polls the NOAA FTP server and logs each updated weather data file. | none |
 
@@ -98,39 +98,58 @@ Without `--car`, MI starts in normal server mode and the sequence does not run.
 
 ## mi-file-integration
 
-All paths are under `/tmp/mi-files` (writable even with a read-only root filesystem):
+A file integration that needs no network access and no endpoints (the cloud `file-integration`
+type rejects components with endpoints), so it can be deployed as is to test the type. It feeds
+itself:
 
-| Directory | Contents |
-|---|---|
-| `inbox/` | Polled every 2 s for `*.json`. |
-| `outbox/` | One summary per processed order, same file name. |
-| `processed/` | Every picked-up input file is moved here (success or failure). |
-| `failed/` | An error record for each input that could not be processed. |
+1. `GenerateOrderTask` runs every 30 s (first run at startup) and `GenerateOrderFile` writes
+   `inbox/order-<yyyyMMdd-HHmmss>.json` with the File connector. One file in ten (the first file of
+   every fifth minute) is malformed: it has no `items`.
+2. The `OrderFileListener` file inbound endpoint polls `inbox/` every 2 s. `ProcessOrderFile` writes
+   a summary to `outbox/` with the same name, and the input file is moved to `processed/`.
+3. A malformed order fails in `ProcessOrderFile`. `OrderFileError` writes an error record to
+   `failed/<name>`, and the input file is still moved to `processed/`.
 
-The `InitFileDirsTask` task runs once at startup and creates the four directories with the File
-connector. The listener can poll before the task finishes, so one
-`WARN {FilePollingConsumer} - Unable to access or read file or directory : file:///tmp/mi-files/inbox`
-at startup is expected.
+All paths are under `/tmp/mi-files`, which is writable even with a read-only root filesystem. The
+File connector creates `inbox/` and `outbox/` on the first write, and the listener creates
+`processed/` (`transport.vfs.CreateFolder=true`). Until the first file is generated, the listener logs
+`WARN {FilePollingConsumer} - Unable to access or read file or directory : file:///tmp/mi-files/inbox`.
+This happens once at startup.
+
+The directories live in the pod, so their contents are lost when the pod restarts. With more than one
+replica, each pod generates and processes its own files.
 
 ```sh
-docker run --rm -p 8290:8290 \
+docker run --rm \
   -v "$PWD/mi-file-integration/target/MIFileIntegration_1.0.0.car":/home/wso2carbon/wso2mi-4.6.0/repository/deployment/server/carbonapps/MIFileIntegration_1.0.0.car \
   wso2/wso2mi:4.6.0
-
-# Drop an order into inbox/ (or copy a file there directly)
-curl -X POST http://localhost:8290/files/inbox/order-1001.json -H 'Content-Type: application/json' \
-  -d '{"orderId":"1001","items":[{"sku":"A","qty":2,"price":10.5},{"sku":"B","qty":1,"price":1000}]}'
-# {"accepted":"inbox/order-1001.json"}
-
-# A couple of seconds later:
-curl http://localhost:8290/files/outbox
-# {"success":true,"files":{"files":[{"name":"order-1001.json","path":"/tmp/mi-files/outbox/order-1001.json"}]}}
-curl http://localhost:8290/files/outbox/order-1001.json
-# {"orderId":"1001","itemCount":2,"total":1021,"sourceFile":"order-1001.json"}
 ```
 
-An order without `items` (for example `{"orderId":"x"}`) is moved to `processed/`, and
-`failed/<name>` gets `{"sourceFile":"<name>","error":"Error parsing FreeMarker template, ..."}`.
+Expected logs, every 30 s:
+
+```
+INFO {LogMediator} - Generated inbox/order-20261102-092724.json (valid)
+INFO {LogMediator} - {inboundendpoint:OrderFileListener} Picked up order file order-20261102-092724.json
+INFO {LogMediator} - {inboundendpoint:OrderFileListener} Wrote order summary /tmp/mi-files/outbox/order-20261102-092724.json: {"orderId":"20261102-092724","itemCount":2,"total":45,"sourceFile":"order-20261102-092724.json"}
+```
+
+and, for a malformed file:
+
+```
+INFO {LogMediator} - Generated inbox/order-20261102-093024.json (malformed)
+INFO {LogMediator} - {inboundendpoint:OrderFileListener} Picked up order file order-20261102-093024.json
+ERROR {PayloadFactoryMediator} - {inboundendpoint:OrderFileListener} Error parsing FreeMarker template, Syntax error or invalid reference : payload.items At line: 1 column: 27
+ERROR {LogMediator} - {inboundendpoint:OrderFileListener} Failed to process order file order-20261102-093024.json: Error parsing FreeMarker template, ...
+```
+
+`failed/order-20261102-093024.json`:
+
+```json
+{
+    "sourceFile": "order-20261102-093024.json",
+    "error": "Error parsing FreeMarker template, Syntax error or invalid reference : payload.items At line: 1 column: 27"
+}
+```
 
 ## mi-weather-data-listener
 

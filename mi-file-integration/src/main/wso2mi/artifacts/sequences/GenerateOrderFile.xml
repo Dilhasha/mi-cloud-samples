@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="GenerateOrderFile" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <!-- Messages injected by a task carry no transport headers, which connector operations expect. -->
+    <header name="X-Generator-Source" scope="transport" action="set" value="GenerateOrderTask"/>
+    <variable name="orderId" type="STRING" expression="${formatDateTime(now(), 'yyyyMMdd-HHmmss')}"/>
+    <variable name="second" type="INTEGER" expression="${integer(formatDateTime(now(), 'ss'))}"/>
+    <variable name="minute" type="INTEGER" expression="${integer(formatDateTime(now(), 'mm'))}"/>
+    <variable name="fileName" type="STRING" expression="${'order-' + vars.orderId + '.json'}"/>
+    <!-- One file in ten (the first file of every fifth minute) has no items, so it takes the failure path. -->
+    <filter xpath="${(vars.minute % 5 == 0) and (vars.second &lt; 30)}">
+        <then>
+            <variable name="kind" type="STRING" value="malformed"/>
+            <payloadFactory media-type="json" template-type="default">
+                <format><![CDATA[{
+    "orderId": "${vars.orderId}"
+}]]></format>
+            </payloadFactory>
+        </then>
+        <else>
+            <variable name="kind" type="STRING" value="valid"/>
+            <payloadFactory media-type="json" template-type="default">
+                <format><![CDATA[{
+    "orderId": "${vars.orderId}",
+    "items": [
+        {"sku": "A", "qty": 2, "price": 10.5},
+        {"sku": "B", "qty": 1, "price": ${vars.second}}
+    ]
+}]]></format>
+            </payloadFactory>
+        </else>
+    </filter>
+    <file.write configKey="FILE_CONN">
+        <filePath>{${"/inbox/" + vars.fileName}}</filePath>
+        <mimeType>application/json</mimeType>
+        <writeMode>Overwrite</writeMode>
+        <responseVariable>file_write_inbox</responseVariable>
+        <overwriteBody>false</overwriteBody>
+    </file.write>
+    <log category="INFO">
+        <message>Generated inbox/${vars.fileName} (${vars.kind})</message>
+    </log>
+    <drop/>
+</sequence>

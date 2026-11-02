@@ -9,6 +9,7 @@
         <parameter name="transport.vfs.ContentType">application/json</parameter>
         <parameter name="transport.vfs.ActionAfterProcess">MOVE</parameter>
         <parameter name="transport.vfs.MoveAfterProcess">file:///tmp/mi-files/processed</parameter>
+        <parameter name="transport.vfs.CreateFolder">true</parameter>
         <parameter name="transport.vfs.Locking">disable</parameter>
     </parameters>
 </inboundEndpoint>
