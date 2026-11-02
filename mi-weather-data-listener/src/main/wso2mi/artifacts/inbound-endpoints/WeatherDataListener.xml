@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inboundEndpoint name="WeatherDataListener" class="org.wso2.carbon.inbound.vfs.VFSConsumer" sequence="ProcessWeatherFile" onError="WeatherFileError" suspend="false" xmlns="http://ws.apache.org/ns/synapse">
+    <parameters>
+        <parameter name="interval">60000</parameter>
+        <parameter name="sequential">true</parameter>
+        <parameter name="coordination">true</parameter>
+        <parameter name="transport.vfs.FileURI">ftp://anonymous:@tgftp.nws.noaa.gov/data/observations/metar/cycles/?vfs.passive=true</parameter>
+        <parameter name="transport.vfs.FileNamePattern">.*\.TXT</parameter>
+        <parameter name="transport.vfs.ContentType">text/plain</parameter>
+        <parameter name="transport.vfs.ActionAfterProcess">NONE</parameter>
+        <parameter name="transport.vfs.ActionAfterFailure">NONE</parameter>
+        <parameter name="transport.vfs.Locking">disable</parameter>
+        <parameter name="transport.vfs.CheckSizeInterval">0</parameter>
+        <parameter name="transport.vfs.MinimumAge">120</parameter>
+    </parameters>
+</inboundEndpoint>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="ProcessWeatherFile" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <!-- A cycle file is a list of reports, each a timestamp line followed by a METAR line, separated by blank lines. -->
+    <variable name="fileName" type="STRING" expression="${headers[&quot;FILE_NAME&quot;]}"/>
+    <variable name="lines" type="JSON" expression="${split(payload.text, '\n')}"/>
+    <log category="INFO">
+        <message>Received weather data file ${vars.fileName} (${headers["FILE_LENGTH"]} bytes). First report: ${vars.lines[0]} ${vars.lines[1]}</message>
+    </log>
+    <drop/>
+</sequence>

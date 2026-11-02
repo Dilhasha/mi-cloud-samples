@@ -9,6 +9,7 @@ Minimal WSO2 Integrator: MI 4.6.0 projects for end-to-end platform testing.
 | `mi-automation/` | Automation: `HeartbeatAutomation` sequence set as the automation (main) sequence. MI runs it once and shuts down. | none |
 | `mi-file-integration/` | File integration: `OrderFileListener` file inbound endpoint polls `/tmp/mi-files/inbox`, summarizes each order JSON into `outbox/` (File connector 5.0.5). `FileAPI` drops and reads files over HTTP. | 8290 |
 | `mi-event-integration/` | Event integration: `OrderEventListener` RabbitMQ inbound endpoint consumes the `orders` queue and logs each event. | none |
+| `mi-weather-data-listener/` | File integration: MI port of the Ballerina [`weather-data-listener`](https://github.com/wso2/integration-samples/tree/main/integrator-default-profile/samples/weather-data-listener) sample. `WeatherDataListener` (File Event Listener `mi-inbound-file` 0.9.3) polls the NOAA FTP server and logs each updated weather data file. | none |
 
 ## Build
 
@@ -16,7 +17,7 @@ Minimal WSO2 Integrator: MI 4.6.0 projects for end-to-end platform testing.
 docker run --rm -v "$PWD/mi-mcp-server":/src -w /src maven:3.9.9-eclipse-temurin-21 \
   mvn --batch-mode --no-transfer-progress clean install -Dmaven.test.skip=true
 # -> mi-mcp-server/target/MIMcpServer_1.0.0.car
-# Same for the others: MIAiAgent, MIAutomation, MIFileIntegration, MIEventIntegration (<artifactId>_1.0.0.car)
+# Same for the others: MIAiAgent, MIAutomation, MIFileIntegration, MIEventIntegration, MIWeatherDataListener (<artifactId>_1.0.0.car)
 ```
 
 ## Run locally
@@ -130,6 +131,61 @@ curl http://localhost:8290/files/outbox/order-1001.json
 
 An order without `items` (for example `{"orderId":"x"}`) is moved to `processed/`, and
 `failed/<name>` gets `{"sourceFile":"<name>","error":"Error parsing FreeMarker template, ..."}`.
+
+## mi-weather-data-listener
+
+MI port of the Ballerina
+[`weather-data-listener`](https://github.com/wso2/integration-samples/tree/main/integrator-default-profile/samples/weather-data-listener)
+sample. It needs outbound FTP (port 21 plus passive data ports) to `tgftp.nws.noaa.gov`, and has no
+endpoints.
+
+`WeatherDataListener` uses the File Event Listener (`mi-inbound-file` 0.9.3, class
+`org.wso2.carbon.inbound.vfs.VFSConsumer`) instead of the built-in `file` inbound endpoint. It polls
+`ftp://anonymous:@tgftp.nws.noaa.gov/data/observations/metar/cycles/` every 60 s for `*.TXT`, and
+`ProcessWeatherFile` logs the file name, size and first report.
+
+Differences from the Ballerina sample:
+
+| | Ballerina | MI |
+|---|---|---|
+| Directory | `/data/observations/metar/decoded/` (one file per station, ~11k files) | `/data/observations/metar/cycles/` (one file per UTC hour, 24 files of ~2 MB) |
+| Which files are processed | Files whose names were not in the previous poll (`addedFiles`) | Files modified in the last 120 s |
+| Logged | First line (station name) | File name, size, and first report (timestamp + METAR line) |
+
+Why:
+
+- **Read-only source.** NOAA is anonymous, read-only FTP. MI file listeners normally track progress by
+  moving or deleting each processed file, and the built-in `file` inbound endpoint has no other mode:
+  the delete fails, and so does writing the `<file>.fail` marker, so every file is processed again on
+  every poll. The File Event Listener accepts `transport.vfs.ActionAfterProcess=NONE`, but it does not
+  remember files it has seen.
+- **Age window instead of name tracking.** `transport.vfs.MinimumAge=120` limits each poll to files
+  modified in the last 120 s. In 0.9.3, `MinimumAge` accepts files whose age is *at most* the value
+  (the opposite of its description), and this sample relies on that. FTP listings only give the
+  modification time to the minute, so the window is twice the poll interval: an updated file is
+  logged once or twice and is not missed. The current hour's file is updated every few minutes, so
+  expect about one log line per poll.
+- **`decoded/` is too large for the listener.** For every entry, the 0.9.3 consumer calls
+  `getType()`, and commons-vfs re-lists the whole FTP directory, so one poll of the ~11k-file
+  `decoded/` directory does not finish. `cycles/` has 24 entries.
+- **`transport.vfs.CheckSizeInterval=0`.** The default size check downloads every matching file
+  (twice) to confirm that it has stopped changing. `0` turns it off.
+
+`coordination=true` keeps one active poller when there is more than one replica.
+
+```sh
+docker run --rm \
+  -v "$PWD/mi-weather-data-listener/target/MIWeatherDataListener_1.0.0.car":/home/wso2carbon/wso2mi-4.6.0/repository/deployment/server/carbonapps/MIWeatherDataListener_1.0.0.car \
+  wso2/wso2mi:4.6.0
+```
+
+The first poll runs about 30 s after startup, then every 60 s:
+
+```
+INFO {LogMediator} - {inboundendpoint:WeatherDataListener} Received weather data file 07Z.TXT (1609171 bytes). First report: 2026/11/02 06:55 KCPF 020655Z AUTO 00000KT 10SM OVC048 11/11 A3034 RMK AO2
+```
+
+A poll with no recently updated file logs nothing.
 
 ## mi-event-integration
 
