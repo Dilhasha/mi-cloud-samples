@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Injected by OrderEventGeneratorTask: publishes a sample order so events flow with no external client. -->
+<sequence name="GenerateOrderEvent" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <variable name="now" type="LONG" expression="${now()}"/>
+    <payloadFactory media-type="json" template-type="default">
+        <format>{"orderId":"auto-${vars.now}","amount":${(vars.now % 7) * 300}}</format>
+    </payloadFactory>
+    <log category="INFO">
+        <message>Publishing generated order event: ${payload}</message>
+    </log>
+    <property name="OUT_ONLY" scope="default" type="STRING" value="true"/>
+    <call>
+        <endpoint key="OrderQueueEP"/>
+    </call>
+    <drop/>
+</sequence>

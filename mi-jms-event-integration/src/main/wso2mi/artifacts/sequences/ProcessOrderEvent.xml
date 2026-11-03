@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="ProcessOrderEvent" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <variable name="orderId" type="STRING" expression="${payload.orderId}"/>
+    <variable name="amount" type="DOUBLE" expression="${payload.amount}"/>
+    <log category="INFO">
+        <message>Order event received: orderId=${vars.orderId}, amount=${vars.amount}</message>
+    </log>
+    <filter xpath="${vars.amount &gt; 1000}">
+        <then>
+            <log category="INFO">
+                <message>High-value order ${vars.orderId} flagged for review</message>
+            </log>
+        </then>
+        <else>
+        </else>
+    </filter>
+    <drop/>
+</sequence>

@@ -10,6 +10,7 @@ Minimal WSO2 Integrator: MI 4.6.0 projects for end-to-end platform testing.
 | `mi-file-integration/` | Self-contained file integration: `GenerateOrderTask` writes an order JSON to `/tmp/mi-files/inbox` every 30 s, and the `OrderFileListener` file inbound endpoint summarizes each one into `outbox/` (File connector 5.0.5). No endpoints, no network. | none |
 | `mi-event-integration/` | Event integration: `OrderEventListener` RabbitMQ inbound endpoint consumes the `orders` queue and logs each event. | none |
 | `mi-weather-data-listener/` | File integration: MI port of the Ballerina [`weather-data-listener`](https://github.com/wso2/integration-samples/tree/main/integrator-default-profile/samples/weather-data-listener) sample. `WeatherDataListener` (File Event Listener `mi-inbound-file` 0.9.3) polls the NOAA FTP server and logs each updated weather data file. | none |
+| `mi-jms-event-integration/` | Self-contained event integration: an embedded ActiveMQ broker runs inside MI. `OrderEventGeneratorTask` (every 30 s) and `OrderAPI` publish to the `orders` JMS queue; `OrderEventListener` (JMS inbound endpoint) consumes it. No external broker or outbound traffic. | 8290 (optional) |
 
 ## Build
 
@@ -17,7 +18,8 @@ Minimal WSO2 Integrator: MI 4.6.0 projects for end-to-end platform testing.
 docker run --rm -v "$PWD/mi-mcp-server":/src -w /src maven:3.9.9-eclipse-temurin-21 \
   mvn --batch-mode --no-transfer-progress clean install -Dmaven.test.skip=true
 # -> mi-mcp-server/target/MIMcpServer_1.0.0.car
-# Same for the others: MIAiAgent, MIAutomation, MIFileIntegration, MIEventIntegration, MIWeatherDataListener (<artifactId>_1.0.0.car)
+# Same for the others: MIAiAgent, MIAutomation, MIFileIntegration, MIEventIntegration, MIWeatherDataListener,
+# MIJmsEventIntegration (<artifactId>_1.0.0.car)
 ```
 
 ## Run locally
@@ -249,6 +251,57 @@ Orders with `amount` > 1000 get the extra "flagged for review" line.
 Known MI 4.6.0 behavior: a message that is not valid JSON (with `content_type: application/json`)
 fails in `JsonStreamBuilder` before mediation, and the RabbitMQ consumer stops. The queue then shows
 0 consumers, and MI must be restarted to consume again. Publish only valid JSON when testing.
+
+## mi-jms-event-integration
+
+An event integration that needs no external broker, so it works where outbound traffic is blocked.
+The JMS connection URL `vm://localhost?broker.persistent=false` makes ActiveMQ start an in-memory
+broker inside the MI JVM on first use. The producer (`OrderQueueEP`) and the consumer
+(`OrderEventListener`) use the same URL, so they share that broker.
+
+| Piece | What it does |
+|---|---|
+| `OrderEventGeneratorTask` | Every 30 s, injects into `GenerateOrderEvent`, which publishes `{"orderId":"auto-<ms>","amount":<0..1800>}`. Events flow with no client at all. |
+| `OrderAPI` | `POST /orders` publishes the request body to the queue and returns `202`. |
+| `OrderEventListener` | JMS inbound endpoint on the `orders` queue. `ProcessOrderEvent` logs the event and flags `amount` > 1000 (same logic as `mi-event-integration`). |
+
+Runtime requirements, both handled by the project:
+
+- **`activemq-all-6.1.6.jar` in `MI_HOME/lib`.** It is a pom dependency, so the build copies it to
+  `deployment/libs`, and the image build copies that to `lib/`. It must be the all-in-one jar:
+  MI turns each `lib` jar into its own OSGi bundle, and with separate `activemq-client` and
+  `activemq-broker` jars the client fails with `Transport scheme NOT recognized: [vm]`.
+- **`[transport.jms] sender_enable = true` in `deployment/deployment.toml`.** No named sender is
+  defined: the endpoint URI carries the JNDI settings and `transport.jms.JMSSpecVersion=3.1`
+  (required for ActiveMQ 6, which uses Jakarta JMS). A named `[[transport.jms.sender]]` without
+  `parameter.jms_spec_version = "3.1"` stops MI at startup with
+  `Cannot cast org.apache.activemq.ActiveMQConnectionFactory to javax.jms.ConnectionFactory`.
+
+The broker is non-persistent and writes nothing to disk, so queued messages are lost on restart.
+
+```sh
+H=/home/wso2carbon/wso2mi-4.6.0
+docker run --rm -p 8290:8290 \
+  -v "$PWD/mi-jms-event-integration/target/MIJmsEventIntegration_1.0.0.car":$H/repository/deployment/server/carbonapps/MIJmsEventIntegration_1.0.0.car \
+  -v "$PWD/mi-jms-event-integration/deployment/deployment.toml":$H/conf/deployment.toml \
+  -v "$PWD/mi-jms-event-integration/deployment/libs/activemq-all-6.1.6.jar":$H/lib/activemq-all-6.1.6.jar \
+  wso2/wso2mi:4.6.0
+
+curl -i -X POST http://localhost:8290/orders -H 'Content-Type: application/json' \
+  -d '{"orderId":"2002","amount":4999.99}'
+# HTTP/1.1 202 Accepted
+```
+
+MI logs:
+
+```
+INFO {LogMediator} - Publishing generated order event: {"orderId":"auto-1793678467353","amount":900}
+INFO {BrokerService} - Apache ActiveMQ 6.1.6 (localhost, ID:...) started
+INFO {LogMediator} - {inboundendpoint:OrderEventListener} Order event received: orderId=auto-1793678467353, amount=900.0
+INFO {LogMediator} - {api:OrderAPI POST /orders} Publishing order event: {"orderId":"2002","amount":4999.99}
+INFO {LogMediator} - {inboundendpoint:OrderEventListener} Order event received: orderId=2002, amount=4999.99
+INFO {LogMediator} - {inboundendpoint:OrderEventListener} High-value order 2002 flagged for review
+```
 
 ## product-samples
 
