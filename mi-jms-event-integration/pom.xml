@@ -241,14 +241,16 @@
                             </execution>
                         </executions>
                     </plugin>
-                    <!-- Download dependency jars to the deployment/libs folder -->
+                    <!-- Download dependency jars to the deployment/libs folder. Bound to generate-sources so the
+                         jars exist before mi-container-config-mapper (generate-resources) copies deployment/libs
+                         into the Docker build context; otherwise a clean build ships an image without them. -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-dependency-plugin</artifactId>
                         <version>3.5.0</version>
                         <executions>
                             <execution>
-                                <phase>process-resources</phase>
+                                <phase>generate-sources</phase>
                                 <goals>
                                     <goal>copy-dependencies</goal>
                                 </goals>
