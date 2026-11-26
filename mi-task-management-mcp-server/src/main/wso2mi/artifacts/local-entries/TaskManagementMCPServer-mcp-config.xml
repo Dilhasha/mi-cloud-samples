@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<localEntry key="TaskManagementMCPServer-mcp-config" xmlns="http://ws.apache.org/ns/synapse">
+    <mcptools>
+        <tool name="listTasks">
+            <api>TaskBoardAPI</api>
+            <resource>/</resource>
+            <method>GET</method>
+            <description>List the tasks on the board, newest last. Pass a status to see only those tasks.</description>
+            <inputSchema><![CDATA[{"type":"object","properties":{"status":{"type":"string","enum":["open","in-progress","done"],"description":"Optional status filter: open, in-progress or done"}},"additionalProperties":false}]]></inputSchema>
+        </tool>
+        <tool name="createTask">
+            <api>TaskBoardAPI</api>
+            <resource>/</resource>
+            <method>POST</method>
+            <description>Add a task to the board. It starts out open, and unassigned unless an assignee is given.</description>
+            <inputSchema><![CDATA[{"type":"object","properties":{"title":{"type":"string","description":"What the task is"},"priority":{"type":"string","enum":["low","medium","high"],"description":"How much it matters: low, medium or high. Defaults to medium."},"assignee":{"type":"string","description":"Who the task belongs to. Left unassigned when omitted or blank."}},"required":["title"],"additionalProperties":false}]]></inputSchema>
+        </tool>
+        <tool name="setTaskStatus">
+            <api>TaskBoardAPI</api>
+            <resource>/{taskId}/status</resource>
+            <method>PUT</method>
+            <description>Move a task to a different status, for example to start or finish it.</description>
+            <inputSchema><![CDATA[{"type":"object","properties":{"taskId":{"type":"string","description":"Id of the task, for example T-1003"},"status":{"type":"string","enum":["open","in-progress","done"],"description":"The status to move it to: open, in-progress or done"}},"required":["taskId","status"],"additionalProperties":false}]]></inputSchema>
+        </tool>
+        <tool name="assignTask">
+            <api>TaskBoardAPI</api>
+            <resource>/{taskId}/assignee</resource>
+            <method>PUT</method>
+            <description>Give a task to someone, replacing whoever holds it now.</description>
+            <inputSchema><![CDATA[{"type":"object","properties":{"taskId":{"type":"string","description":"Id of the task, for example T-1003"},"assignee":{"type":"string","description":"Who the task should belong to"}},"required":["taskId","assignee"],"additionalProperties":false}]]></inputSchema>
+        </tool>
+    </mcptools>
+</localEntry>

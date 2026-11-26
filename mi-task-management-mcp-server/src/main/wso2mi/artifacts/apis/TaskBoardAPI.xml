@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/tasks" name="TaskBoardAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <!-- listTasks: the board, or only the tasks in one status (?status=open). -->
+    <resource methods="GET" uri-template="/">
+        <inSequence>
+            <variable name="status" type="STRING" expression="${exists(params.queryParams.status) ? params.queryParams.status : ''}"/>
+            <class name="org.wso2.samples.taskboard.TaskBoardMediator">
+                <property name="operation" value="list"/>
+            </class>
+            <respond/>
+        </inSequence>
+        <faultSequence/>
+    </resource>
+    <!-- createTask: {"title": "...", "priority": "low|medium|high", "assignee": "..."} -->
+    <resource methods="POST" uri-template="/">
+        <inSequence>
+            <variable name="title" type="STRING" expression="${exists(payload.title) ? payload.title : ''}"/>
+            <variable name="priority" type="STRING" expression="${exists(payload.priority) ? payload.priority : ''}"/>
+            <variable name="assignee" type="STRING" expression="${exists(payload.assignee) ? payload.assignee : ''}"/>
+            <class name="org.wso2.samples.taskboard.TaskBoardMediator">
+                <property name="operation" value="create"/>
+            </class>
+            <respond/>
+        </inSequence>
+        <faultSequence/>
+    </resource>
+    <!-- setTaskStatus: {"status": "open|in-progress|done"} -->
+    <resource methods="PUT" uri-template="/{taskId}/status">
+        <inSequence>
+            <variable name="taskId" type="STRING" expression="${params.pathParams.taskId}"/>
+            <variable name="status" type="STRING" expression="${exists(payload.status) ? payload.status : ''}"/>
+            <class name="org.wso2.samples.taskboard.TaskBoardMediator">
+                <property name="operation" value="setStatus"/>
+            </class>
+            <respond/>
+        </inSequence>
+        <faultSequence/>
+    </resource>
+    <!-- assignTask: {"assignee": "..."} -->
+    <resource methods="PUT" uri-template="/{taskId}/assignee">
+        <inSequence>
+            <variable name="taskId" type="STRING" expression="${params.pathParams.taskId}"/>
+            <variable name="assignee" type="STRING" expression="${exists(payload.assignee) ? payload.assignee : ''}"/>
+            <class name="org.wso2.samples.taskboard.TaskBoardMediator">
+                <property name="operation" value="assign"/>
+            </class>
+            <respond/>
+        </inSequence>
+        <faultSequence/>
+    </resource>
+</api>

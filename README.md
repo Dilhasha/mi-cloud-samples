@@ -5,6 +5,7 @@ Minimal WSO2 Integrator: MI 4.6.0 projects for end-to-end platform testing.
 | Project | What it is | Ports |
 |---|---|---|
 | `mi-mcp-server/` | `GreetingAPI` REST API plus an MCP server (`GreetingMCPServer` inbound endpoint) that exposes `GET /greeting/hello/{name}` as the MCP tool `greet`. | 8290 (REST), 8300 (MCP, `/mcp`) |
+| `mi-task-management-mcp-server/` | MCP server over an in-memory task board, the MI port of the Ballerina [`task-management-mcp-server`](https://github.com/wso2/integration-samples/tree/main/integrator-default-profile/samples/task-management-mcp-server) sample. Tools `listTasks`, `createTask`, `setTaskStatus` and `assignTask` run `TaskBoardAPI` resources, and a class mediator holds the board. | 8290 (REST), 8300 (MCP, `/mcp`) |
 | `mi-ai-agent/` | `AgentAPI` REST API that runs an `ai.agent` (OpenAI, `gpt-4o-mini`, file chat memory). | 8290 |
 | `mi-automation/` | Automation: `HeartbeatAutomation` sequence set as the automation (main) sequence. MI runs it once and shuts down. | none |
 | `mi-file-integration/` | Self-contained file integration: `GenerateOrderTask` writes an order JSON to `/tmp/mi-files/inbox` every 30 s, and the `OrderFileListener` file inbound endpoint summarizes each one into `outbox/` (File connector 5.0.5). No endpoints, no network. | none |
@@ -19,7 +20,7 @@ docker run --rm -v "$PWD/mi-mcp-server":/src -w /src maven:3.9.9-eclipse-temurin
   mvn --batch-mode --no-transfer-progress clean install -Dmaven.test.skip=true
 # -> mi-mcp-server/target/MIMcpServer_1.0.0.car
 # Same for the others: MIAiAgent, MIAutomation, MIFileIntegration, MIEventIntegration, MIWeatherDataListener,
-# MIJmsEventIntegration (<artifactId>_1.0.0.car)
+# MIJmsEventIntegration, TaskManagementMCPServer (<artifactId>_1.0.0.car)
 ```
 
 ## Run locally
@@ -54,6 +55,12 @@ Any MCP client that supports the SSE transport works, for example MCP Inspector 
 and URL `http://localhost:8300/mcp`.
 
 `.choreo/component.yaml` declares one endpoint, `mcp` (port 8300, basePath `/mcp`, REST, Public).
+
+## mi-task-management-mcp-server
+
+See [`mi-task-management-mcp-server/README.md`](mi-task-management-mcp-server/README.md). It uses the same HTTP+SSE
+transport as `mi-mcp-server`, and a class mediator in `src/main/java`: its `pom.xml` binds the compiler to the
+`compile` phase, which a `pom`-packaged project does not do by default, so the CAR carries the mediator.
 
 ## mi-ai-agent
 
